@@ -1,0 +1,40 @@
+#!/usr/bin/env perl6
+
+use Test;
+use Math::Libgsl::Vector;
+use Math::Libgsl::Random;
+use lib 'lib';
+use Math::Libgsl::DigitalFiltering;
+
+sub random-vector(Math::Libgsl::Vector $v)
+{
+  my Math::Libgsl::Random $r .= new;
+  $v[$_] = 2e0 * $r.get-uniform - 1 for ^$v.vector.size;
+}
+
+my constant $n = 1000;
+my constant $K = 301;
+my $*TOLERANCE = 10⁻¹²;
+
+my Math::Libgsl::DigitalFiltering::Median $m .= new: $K;
+isa-ok $m, Math::Libgsl::DigitalFiltering::Median, 'create median filter';
+
+my Math::Libgsl::DigitalFiltering::Median $median .= new: :size($K);
+isa-ok $median, Math::Libgsl::DigitalFiltering::Median, 'create median filter with named argument';
+
+my Math::Libgsl::Vector $x .= new: $n;
+random-vector($x);
+
+my $y = $median.filter($x);
+ok ([&&] $y[200..^205]
+    Z≅
+    (-0.02616701973602175, -0.00868644937872886, -0.00580347748473286, -0.002211948391050100, -0.002211948391050100)
+   ), 'apply filter';
+
+$median.filter($x, :inplace);
+ok ([&&] $x[200..^205]
+    Z≅
+    (-0.02616701973602175, -0.00868644937872886, -0.00580347748473286, -0.002211948391050100, -0.002211948391050100)
+   ), 'apply filter in-place';
+
+done-testing;

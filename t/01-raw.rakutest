@@ -1,0 +1,148 @@
+#!/usr/bin/env perl6
+
+use Test;
+use NativeCall;
+use lib 'lib';
+use Math::Libgsl::Raw::Matrix :ALL;
+use Math::Libgsl::Raw::Matrix::Int32 :ALL;
+use Math::Libgsl::Raw::Random;
+use Math::Libgsl::Raw::RandomDistribution :ALL;
+use Math::Libgsl::Raw::DigitalFiltering;
+use Math::Libgsl::Constants;
+
+sub random_vector(gsl_vector $v)
+{
+  my gsl_rng $r = mgsl_rng_setup(DEFAULT);
+  gsl_vector_set($v, $_, 2e0 * gsl_rng_uniform($r) - 1e0) for ^$v.size;
+  gsl_rng_free($r);
+}
+
+my constant $n = 1000;
+my $*TOLERANCE = 10⁻¹²;
+
+subtest 'gaussian filter' => {
+  my gsl_filter_gaussian_workspace $gw = gsl_filter_gaussian_alloc(21);
+  isa-ok $gw, Math::Libgsl::Raw::DigitalFiltering::gsl_filter_gaussian_workspace, 'create gaussian workspace';
+
+  my gsl_vector $x = gsl_vector_alloc($n);
+  my gsl_vector $y = gsl_vector_alloc($n);
+  random_vector($x);
+
+  gsl_filter_gaussian(GSL_FILTER_END_PADZERO, 2.5e0, 3, $x, $y, $gw);
+  ok ([&&] (gather take gsl_vector_get($y, $_) for ^5)
+      Z≅
+      (0.000802834484471637, 0.000343360095805501, -0.000965830560595006, -0.001959798287285335, -0.002997647569208206)
+     ), 'gaussian filter';
+
+  my gsl_vector $kernel = gsl_vector_alloc($n + 1);
+  gsl_filter_gaussian_kernel(3e0, 0, 0, $kernel);
+  ok ([&&] (gather take gsl_vector_get($kernel, $_) for ^5)
+      Z≅
+      (0.011108996538242306, 0.011310565388071403, 0.01151537707301849, 0.011723475434644665, 0.011934904749428772)
+     ), 'gaussian kernel';
+
+  gsl_vector_free($x);
+  gsl_vector_free($y);
+  gsl_vector_free($kernel);
+  lives-ok { gsl_filter_gaussian_free($gw) }, 'free gaussian filter';
+}
+
+subtest 'median filter' => {
+  my gsl_filter_median_workspace $mw = gsl_filter_median_alloc(301);
+  isa-ok $mw, Math::Libgsl::Raw::DigitalFiltering::gsl_filter_median_workspace, 'create median workspace';
+
+  my gsl_vector $x = gsl_vector_alloc($n);
+  my gsl_vector $y = gsl_vector_alloc($n);
+  random_vector($x);
+
+  gsl_filter_median(GSL_FILTER_END_PADZERO, $x, $y, $mw);
+  ok ([&&] (gather take gsl_vector_get($y, $_) for 200..^205)
+      Z≅
+      (-0.02616701973602175, -0.00868644937872886, -0.00580347748473286, -0.002211948391050100, -0.002211948391050100)
+     ), 'median filter';
+
+  gsl_vector_free($x);
+  gsl_vector_free($y);
+  lives-ok { gsl_filter_median_free($mw) }, 'free median filter';
+}
+
+subtest 'recursive median filter' => {
+  my gsl_filter_rmedian_workspace $mw = gsl_filter_rmedian_alloc(100);
+  isa-ok $mw, Math::Libgsl::Raw::DigitalFiltering::gsl_filter_rmedian_workspace, 'create recursive median workspace';
+
+  my gsl_vector $x = gsl_vector_alloc($n + 1);
+  my gsl_vector $y = gsl_vector_alloc($n + 1);
+  random_vector($x);
+
+  gsl_filter_rmedian(GSL_FILTER_END_PADZERO, $x, $y, $mw);
+  ok ([&&] (gather take gsl_vector_get($y, $_) for ^$n)
+      Z≅
+      (0 xx $n)
+     ), 'recursive median filter';
+
+  gsl_vector_free($x);
+  gsl_vector_free($y);
+  lives-ok { gsl_filter_rmedian_free($mw) }, 'free rmedian filter';
+}
+
+subtest 'impulse filter' => {
+  my gsl_filter_impulse_workspace $iw = gsl_filter_impulse_alloc(21);
+  isa-ok $iw, Math::Libgsl::Raw::DigitalFiltering::gsl_filter_impulse_workspace, 'create impulse workspace';
+
+  my gsl_rng $r                      = mgsl_rng_setup(DEFAULT);
+  my gsl_vector $x                   = gsl_vector_alloc($n);
+  my gsl_vector $y                   = gsl_vector_alloc($n);
+  my gsl_vector $y_med               = gsl_vector_alloc($n);
+  my gsl_vector $xmedian             = gsl_vector_alloc($n);
+  my gsl_vector $xsigma              = gsl_vector_alloc($n);
+  my gsl_vector_int $ioutlier        = gsl_vector_int_alloc($n);
+  my gsl_vector_int $ioutlier_exact  = gsl_vector_int_alloc($n);
+  my gsl_filter_median_workspace $mw = gsl_filter_median_alloc(21);
+  my num64  $ioutlier_percentage = .05e0;
+  my size_t $noutlier_exact = 0;
+  my size_t $noutlier = 0;
+  my num64  $nsigma = 6e0;
+
+  gsl_vector_int_set_zero($ioutlier_exact);
+  for ^$n -> $i {
+    my $xi = gsl_ran_gaussian($r, 1e0);
+    my $vi = gsl_rng_uniform($r);
+    if $vi ≤ $ioutlier_percentage {
+      $xi += 15e0 * $xi.sign;
+      ++$noutlier_exact;
+      gsl_vector_int_set($ioutlier_exact, $i, 1);
+    }
+    gsl_vector_set($x, $i, $xi);
+  }
+
+  gsl_filter_median(GSL_FILTER_END_TRUNCATE, $x, $y_med, $mw);
+  gsl_filter_impulse(GSL_FILTER_END_TRUNCATE, GSL_FILTER_SCALE_QN, 0e0, $x, $y, $xmedian, $xsigma, $noutlier, $ioutlier, $iw);
+  ok ([&&] (gather take gsl_vector_get($y, $_) for ^$n)
+      Z≅
+      (gather take gsl_vector_get($y_med, $_) for ^$n)
+     ), 'impulse comparison';
+
+  gsl_filter_impulse(GSL_FILTER_END_TRUNCATE, GSL_FILTER_SCALE_QN, $nsigma, $x, $y, $xmedian, $xsigma, $noutlier, $ioutlier, $iw);
+  ok $noutlier == $noutlier_exact, 'correct number of outliers';
+
+  my $outlier_pos = True;
+  for ^$n -> $i {
+    my $val       = gsl_vector_int_get($ioutlier, $i);
+    my $val_exact = gsl_vector_int_get($ioutlier_exact, $i);
+    $outlier_pos &&= $val ≡ $val_exact;
+  }
+  ok $outlier_pos, 'impulse outliers position';
+
+  gsl_rng_free($r);
+  gsl_vector_free($x);
+  gsl_vector_free($y);
+  gsl_vector_free($y_med);
+  gsl_vector_free($xmedian);
+  gsl_vector_free($xsigma);
+  gsl_vector_int_free($ioutlier);
+  gsl_vector_int_free($ioutlier_exact);
+  gsl_filter_median_free($mw);
+  lives-ok { gsl_filter_impulse_free($iw) }, 'free impulse filter';
+}
+
+done-testing;

@@ -1,0 +1,56 @@
+#!/usr/bin/env perl6
+
+use Test;
+use Math::Libgsl::Constants;
+use Math::Libgsl::Vector;
+use Math::Libgsl::Vector::Int32;
+use Math::Libgsl::Random;
+use Math::Libgsl::RandomDistribution;
+use lib 'lib';
+use Math::Libgsl::DigitalFiltering;
+
+my constant $n = 1000;
+my constant $K = 21;
+my $*TOLERANCE = 10⁻¹²;
+
+my Math::Libgsl::DigitalFiltering::Impulse $i .= new: $K;
+isa-ok $i, Math::Libgsl::DigitalFiltering::Impulse, 'create impulse filter';
+
+my Math::Libgsl::DigitalFiltering::Impulse $impulse .= new: :size($K);
+isa-ok $impulse, Math::Libgsl::DigitalFiltering::Impulse, 'create impulse filter with named argument';
+
+my Math::Libgsl::Random $r .= new;
+my Math::Libgsl::Vector $x .= new: $n;
+my Math::Libgsl::Vector::Int32 $ioutlier_exact .= new: $n;
+$ioutlier_exact.zero;
+my $ioutlier_percentage = .05;
+my $noutlier_exact = 0;
+my Math::Libgsl::DigitalFiltering::Median $median .= new: :size($K);
+
+for ^$n -> $i {
+  my $xi = gaussian($r, 1);
+  my $vi = $r.get-uniform;
+  if $vi ≤ $ioutlier_percentage {
+    $xi += 15 * $xi.sign;
+    ++$noutlier_exact;
+    $ioutlier_exact[$i] = 1;
+  }
+  $x[$i] = $xi;
+}
+
+my $y_med = $median.filter: $x, :endtype(GSL_FILTER_END_TRUNCATE);
+my ($xmedian, $xsigma, $noutlier, $ioutlier, $y) = $impulse.filter: $x, 0, :endtype(GSL_FILTER_END_TRUNCATE), :scaletype(GSL_FILTER_SCALE_QN);
+ok ([&&] $y[^$n] Z≅ $y_med[^$n]), 'impulse comparison';
+
+($xmedian, $xsigma, $noutlier, $ioutlier, $y) = $impulse.filter: $x, 6, :endtype(GSL_FILTER_END_TRUNCATE), :scaletype(GSL_FILTER_SCALE_QN);
+ok $noutlier == $noutlier_exact, 'correct number of outliers';
+
+my $outlier_pos = True;
+for ^$n -> $i {
+  my $val       = $ioutlier[$i];
+  my $val_exact = $ioutlier_exact[$i];
+  $outlier_pos &&= $val ≡ $val_exact;
+}
+ok $outlier_pos, 'impulse outliers position';
+
+done-testing;

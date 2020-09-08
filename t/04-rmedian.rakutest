@@ -1,0 +1,40 @@
+#!/usr/bin/env perl6
+
+use Test;
+use Math::Libgsl::Vector;
+use Math::Libgsl::Random;
+use lib 'lib';
+use Math::Libgsl::DigitalFiltering;
+
+sub random-vector(Math::Libgsl::Vector $v)
+{
+  my Math::Libgsl::Random $r .= new;
+  $v[$_] = 2e0 * $r.get-uniform - 1 for ^$v.vector.size;
+}
+
+my constant $n = 1000;
+my constant $K = 100;
+my $*TOLERANCE = 10⁻¹²;
+
+my Math::Libgsl::DigitalFiltering::RMedian $rm .= new: $K;
+isa-ok $rm, Math::Libgsl::DigitalFiltering::RMedian, 'create recursive median filter';
+
+my Math::Libgsl::DigitalFiltering::RMedian $rmedian .= new: :size($K);
+isa-ok $rmedian, Math::Libgsl::DigitalFiltering::RMedian, 'create recursive median filter with named argument';
+
+my Math::Libgsl::Vector $x .= new: $n;
+random-vector($x);
+
+my $y = $rmedian.filter($x);
+ok ([&&] $y[^$K]
+    Z≅
+    (0 xx $K)
+   ), 'apply filter';
+
+$rmedian.filter($x, :inplace);
+ok ([&&] $x[^$K]
+    Z≅
+    (0 xx $K)
+   ), 'apply filter in-place';
+
+done-testing;

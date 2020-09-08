@@ -1,0 +1,46 @@
+#!/usr/bin/env perl6
+
+use Test;
+use Math::Libgsl::Vector;
+use Math::Libgsl::Random;
+use lib 'lib';
+use Math::Libgsl::DigitalFiltering;
+
+sub random-vector(Math::Libgsl::Vector $v)
+{
+  my Math::Libgsl::Random $r .= new;
+  $v[$_] = 2e0 * $r.get-uniform - 1 for ^$v.vector.size;
+}
+
+my constant $n = 1000;
+my constant $K = 21;
+my $*TOLERANCE = 10⁻¹²;
+
+my Math::Libgsl::DigitalFiltering::Gaussian $g.= new: $K;
+isa-ok $g, Math::Libgsl::DigitalFiltering::Gaussian, 'create gaussian filter';
+
+my Math::Libgsl::DigitalFiltering::Gaussian $gauss .= new: :size($K);
+isa-ok $gauss, Math::Libgsl::DigitalFiltering::Gaussian, 'create gaussian filter with named argument';
+
+my Math::Libgsl::Vector $x .= new: $n;
+random-vector($x);
+
+my $y = $gauss.filter(2.5, $x, :3order);
+ok ([&&] $y[^5]
+    Z≅
+    (0.000802834484471637, 0.000343360095805501, -0.000965830560595006, -0.001959798287285335, -0.002997647569208206)
+   ), 'apply filter';
+
+$gauss.filter(2.5, $x, :3order, :inplace);
+ok ([&&] $x[^5]
+    Z≅
+    (0.000802834484471637, 0.000343360095805501, -0.000965830560595006, -0.001959798287285335, -0.002997647569208206)
+   ), 'apply filter in-place';
+
+my $kernel = $gauss.kernel(3, 1001);
+ok ([&&] $kernel[^5]
+    Z≅
+    (0.011108996538242306, 0.011310565388071403, 0.01151537707301849, 0.011723475434644665, 0.011934904749428772)
+   ), 'gaussian kernel';
+
+done-testing;
