@@ -8,6 +8,7 @@
     "Math::Libgsl::Constants",
     "Math::Libgsl::Matrix",
     "Math::Libgsl::Random",
+    "Math::Libgsl::MovingWindow",
     "Math::Libgsl::RandomDistribution"
   ],
   "description" : "An interface to libgsl, the Gnu Scientific Library - Digital Filtering",
