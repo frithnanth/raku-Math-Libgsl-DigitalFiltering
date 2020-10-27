@@ -49,7 +49,7 @@ my $outlier_pos = True;
 for ^$n -> $i {
   my $val       = $ioutlier[$i];
   my $val_exact = $ioutlier_exact[$i];
-  $outlier_pos &&= $val ≡ $val_exact;
+  $outlier_pos &&= $val == $val_exact;
 }
 ok $outlier_pos, 'impulse outliers position';
 

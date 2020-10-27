@@ -129,7 +129,7 @@ subtest 'impulse filter' => {
   for ^$n -> $i {
     my $val       = gsl_vector_int_get($ioutlier, $i);
     my $val_exact = gsl_vector_int_get($ioutlier_exact, $i);
-    $outlier_pos &&= $val ≡ $val_exact;
+    $outlier_pos &&= $val == $val_exact;
   }
   ok $outlier_pos, 'impulse outliers position';
 
