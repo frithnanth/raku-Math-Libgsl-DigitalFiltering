@@ -24,9 +24,9 @@ my $d2y = $gauss.filter: $α, $x, :order(2), :endtype(GSL_FILTER_END_PADVALUE);
 # print results
 for ^$N -> $i {
   my $dxi;
-  if $i ≡ 0 {
+  if $i == 0 {
     $dxi = $x[$i + 1] - $x[$i];
-  } elsif $i ≡ $N - 1 {
+  } elsif $i == $N - 1 {
     $dxi = $x[$i] - $x[$i - 1];
   } else {
     $dxi = .5 * ($x[$i + 1] - $x[$i - 1]);
