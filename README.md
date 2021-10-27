@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/frithnanth/raku-Math-Libgsl-DigitalFiltering/workflows/test/badge.svg)](https://github.com/frithnanth/raku-Math-Libgsl-DigitalFiltering/actions) [![Build Status](https://travis-ci.org/frithnanth/raku-Math-Libgsl-DigitalFiltering.svg?branch=master)](https://travis-ci.org/frithnanth/raku-Math-Libgsl-DigitalFiltering)
+[![Actions Status](https://github.com/frithnanth/raku-Math-Libgsl-DigitalFiltering/workflows/test/badge.svg)](https://github.com/frithnanth/raku-Math-Libgsl-DigitalFiltering/actions)
 
 ![Impulse filter](examples/04-impulse.svg)
 
