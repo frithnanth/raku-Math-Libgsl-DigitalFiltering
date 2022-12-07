@@ -1,6 +1,6 @@
 use v6;
 
-unit module Math::Libgsl::Raw::DigitalFiltering:ver<0.0.1>:auth<zef:FRITH>;
+unit module Math::Libgsl::Raw::DigitalFiltering:ver<0.0.2>:auth<zef:FRITH>;
 
 use Math::Libgsl::Raw::Matrix :ALL;
 use Math::Libgsl::Raw::Matrix::Int32 :ALL;

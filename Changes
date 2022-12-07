@@ -1,6 +1,8 @@
 Revision history for Math-Libgsl-DigitalFiltering
 
 {{$NEXT}}
+
+0.0.2  2022-12-07T19:37:18+01:00
     - Use zef ecosystem
 
 0.0.1  2020-09-08T16:03:03+02:00
